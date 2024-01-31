@@ -18,6 +18,7 @@ Transfer the designated folders and files from Github to the directory where you
 3) Graphic.txt
 4) BiotypingGenomes.csv
 5) LinuxPipeLine_v01_container.py
+6) p72GenotypingData.csv
 
 ### Folder
 ./BlastOutput/
