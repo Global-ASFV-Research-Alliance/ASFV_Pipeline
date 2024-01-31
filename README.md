@@ -26,10 +26,15 @@ Transfer the designated folders and files from Github to the directory where you
 The Image can be downloaded and formatted for docker or singuilarity using the following commands:
 
 #### Docker
-	docker pull garadock/asfv_match_assembly_pipeline:v02
+First, open Docker Desktop. Then in Powershell enter the following command:
+```
+ docker pull garadock/asfv_match_assembly_pipeline:v02
+ ```
 #### Singularity
-	singularity pull ASFV_match_assembly_pipeline_v02.sif docker://garadock/asfv_match_assembly_pipeline:v02
-
+Open Powershell and enter the following command:
+```
+singularity pull ASFV_match_assembly_pipeline_v02.sif docker://garadock/asfv_match_assembly_pipeline:v02
+```
 
 ## Instructions for use
 
