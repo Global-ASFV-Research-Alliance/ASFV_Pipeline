@@ -473,7 +473,7 @@ def MetaDataString(organism, collection_date, country, location, host, tissue, c
     if collected_by != None:
         string += " [Collected_by=" + collected_by + "]"
     if isolate != None:
-        string += " [Isolate=" + isolate+"]"
+        string += isolate + " [Isolate=" + isolate +"]"
     if str(Genotype) != None:
         string += " [Genotype=" + str(Genotype) + "]"
     if str(Biotype) != None:
