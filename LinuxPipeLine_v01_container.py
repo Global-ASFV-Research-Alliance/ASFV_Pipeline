@@ -6,11 +6,12 @@ from Bio.Blast.Applications import NcbiblastnCommandline
 import time
 import glob
 
-import random #NEWLIBRARY
-import string #NEWLIBRARY
-import datetime #NEWLBIRARY
-import matplotlib.pyplot as plt #NEWLIBRARY
-from statistics import mean #NEWLIBRARY
+import random
+import string
+import datetime
+import matplotlib.pyplot as plt
+from statistics import mean
+import shutil #NEWLIBRARY
 
 #CSVs
 METADATASTORAGE = "MetaDataStorage.csv" #Outside of Container, Record of storage
@@ -33,6 +34,7 @@ ORGANISM = "African swine fever virus"
 WEBSITE = "Data processed by pipeline (version " + str(VERSION) + ") hosted at https://asfvgenomics.com/ on " + str(datetime.date.today()) + "."
 
 #########################################################################
+
 ### Setup
 
 #Generate Projectname
@@ -44,7 +46,7 @@ def rand_pass(size):
                         for n in range(size)]) 
                         
     return generate_pass 
-ProjectName = rand_pass(8) + "_" + str(datetime.date.today())
+ProjectName = str(datetime.date.today()) + "_" + rand_pass(8)
 ProjectName = ProjectName.replace(" ", "_").replace("-","_")
 
 #Update MetadataFile
@@ -119,7 +121,7 @@ GeorgiaMap_L1 = MapToReference(Trim_L1R1, Trim_L1R2, Lane = 1)
 GeorgiaMap_L2 = MapToReference(Trim_L2R1, Trim_L2R2, Lane = 2)
 GeorgiaMap_L3 = MapToReference(Trim_L3R1, Trim_L3R2, Lane = 3)
 GeorgiaMap_L4 = MapToReference(Trim_L4R1, Trim_L4R2, Lane = 4)
-time.sleep(60)
+#time.sleep(60)
 print("MapToGeorgiaDone")
 
 #Combine Lanes, or if only lane 1 set only to that lane.
@@ -190,7 +192,7 @@ else:
     PredictedMap_L2 = MapToReference(Trim_L2R1, Trim_L2R2, Lane = 2, Reference=PredictedReference + ".fa")
     PredictedMap_L3 = MapToReference(Trim_L3R1, Trim_L3R2, Lane = 3, Reference=PredictedReference + ".fa")
     PredictedMap_L4 = MapToReference(Trim_L4R1, Trim_L4R2, Lane = 4, Reference=PredictedReference + ".fa")
-    time.sleep(60)
+    #time.sleep(60)
     CombinedPredicted = MergeMaps(PredictedMap_L1,PredictedMap_L2,PredictedMap_L3,PredictedMap_L4,PredictedReference)
     
 
@@ -198,17 +200,26 @@ print(CombinedPredicted)
 
 print("MergePredict Done")
 
+
+def MoveReferenceFile(ReferenceDirectory, PredictedReference, FileType):
+    if not os.path.isfile(PredictedReference + FileType):
+        shutil.copy2(ReferenceDirectory + PredictedReference + FileType, os.getcwd())
+    else:
+        pass
+    return PredictedReference + FileType
+#
+
+Ref_File_In_Directory = MoveReferenceFile(ReferenceDirectory=ReferenceDirectory, PredictedReference=PredictedReference, FileType=".fa")
 ### Extract Consensus Sequence and Create Fasta
-#os.system("bcftools mpileup -Ou -f " + PredictedReference + ".fa" + " " + CombinedPredicted + " | bcftools call -mv -Oz -o " + CombinedPredicted + "calls.vcf.gz")
-os.system("bcftools mpileup -Ou -f "+ ReferenceDirectory + PredictedReference + ".fa" + " " + CombinedPredicted + " -d 1000000 | bcftools call -mv -Ov -o "  + ProjectName + "_calls.vcf")
-#BACKUP LINE os.system("bcftools mpileup -Ou -f " + ReferenceDirectory + PredictedReference + ".fa" + " " + CombinedPredicted + " | bcftools call -mv -Oz -o " + CombinedPredicted + "calls.vcf.gz")
+#old....os.system("bcftools mpileup -Ou -f "+ ReferenceDirectory + PredictedReference + ".fa" + " " + CombinedPredicted + " -d 1000000 | bcftools call -mv -Ov -o "  + ProjectName + "_calls.vcf")
+os.system("bcftools mpileup -Ou -f " + Ref_File_In_Directory + " " + CombinedPredicted + " -d 1000000 | bcftools call -mv -Ov -o "  + ProjectName + "_calls.vcf")
 
 RAW_File = ProjectName + "_calls.vcf"
 CSV_Output = ProjectName + "_SNP.csv"
 VCF_Output = ProjectName + "_corrected_calls.vcf"
 
 ###############################################################################
- 
+
 #the first 27 rows can be skipped because they are not formatted properly
 Variant_Table = pd.read_csv(RAW_File, sep="\t", skiprows = 27)
 RAW_Table = pd.read_csv(RAW_File, sep="\t", skiprows = 27)
@@ -270,25 +281,21 @@ RAW_Table.to_csv(VCF_Output, sep = '\t', mode='a', index = False, header=True)
 
 
 print("SNP Table Created")
-### call variants
-#os.system("bcftools index " + CombinedPredicted + "calls.vcf.gz")
-#print("bcftools index Done")
 
 # Create a BedFile Marking Unmapped Regions
-os.system("bedtools genomecov -ibam " + CombinedPredicted + " -bga | grep -w 0$ > unmappedRegions.bed")
+os.system("bedtools genomecov -ibam " + CombinedPredicted + " -bga | grep -w 0$ > " + ProjectName + "_unmappedRegions.bed")
 
 print("bedtools genomecov Done")
 os.system("bcftools view "+ VCF_Output + " -Oz --write-index -o " + VCF_Output + ".gz")
 # apply variants to create consensus sequence
 ConsensusGenome = ProjectName + "_consensus.fa"
-#os.system("cat " + PredictedReference + " | bcftools consensus " + CombinedPredicted + "calls.vcf.gz -m unmappedRegions.bed > " + ConsensusGenome)
-#os.system("cat " + ReferenceDirectory + PredictedReference + " | bcftools consensus " + CombinedPredicted + "calls.vcf.gz -m unmappedRegions.bed > " + ConsensusGenome)
-os.system("cat " + ReferenceDirectory + PredictedReference + ".fa | bcftools consensus " + VCF_Output + ".gz" + " -m unmappedRegions.bed > " + ConsensusGenome)
+os.system("cat " + ReferenceDirectory + PredictedReference + ".fa | bcftools consensus " + VCF_Output + ".gz" + " -m " + ProjectName + "_unmappedRegions.bed > " + ConsensusGenome)
 print("Consensus Genome Done")  
 
 ######################################################################### RIGHT LINE STARTS HERE #########################################################################
-
-def p72finder(queryfile, subjectfile, GenomeColumn = 'Genome', SequenceColumn = 'Sequence', IsolateColumn = 'Isolate', GenotypeColumn = 'GenotypeNumber', outputname_fasta = 'P72.fasta', outputlocation = 'blastxout.txt'):
+outputname_fasta = ProjectName + '_P72.fasta'
+blastxout = ProjectName + '_blastxout.txt'
+def p72finder(queryfile, subjectfile, GenomeColumn = 'Genome', SequenceColumn = 'Sequence', IsolateColumn = 'Isolate', GenotypeColumn = 'GenotypeNumber', outputname_fasta = outputname_fasta, outputlocation = blastxout):
     
     subject_excel = pd.read_csv(subjectfile, usecols=[GenomeColumn,SequenceColumn,IsolateColumn,GenotypeColumn])
     #subject_excel = pd.read_excel(subjectfile, usecols=[GenomeColumn,SequenceColumn,IsolateColumn,GenotypeColumn])
@@ -356,7 +363,16 @@ def FolderPathFixer(FolderPath):
     FolderPath = FolderPath + "\\"
     return FolderPath.replace("\\\\","\\")
 
-blastoutputbank = "./BlastOutput/"
+## Create a new directory
+def Make_Directory(ProjectName, Suffix):
+    NewDirectory = ProjectName + "_" + Suffix +"/"
+    if not os.path.exists(NewDirectory):
+        os.makedirs(NewDirectory)
+        return NewDirectory
+    else:
+        return NewDirectory
+
+blastoutputbank = Make_Directory(ProjectName = ProjectName, Suffix="BLASTOUTPUT")
 fastabank = FolderPathFixer(BiotypingReferences)
 print(fastabank)
 
@@ -411,9 +427,9 @@ def BiotypingWithBlast(queryfile, blastoutputbank, FastaBank, GenomeCsv, SaveTem
     BM_Pident, BM_Ratio, BM_PidentRatio = BlastBankToPidentMatrix(blastoutputbank)
     
     if SaveTempFiles == True:
-        BM_Pident.to_csv("TempPident.csv")
-        BM_Ratio.to_csv("TempRatio.csv")
-        BM_PidentRatio.to_csv("TempPidentRatio.csv")
+        BM_Pident.to_csv(ProjectName + "_TempPident.csv")
+        BM_Ratio.to_csv(ProjectName + "_TempRatio.csv")
+        BM_PidentRatio.to_csv(ProjectName + "_TempPidentRatio.csv")
     
     BM_Pident_Mean = BM_Pident.mean(axis=1, numeric_only = True)
     BM_Ratio_Mean = BM_Ratio.mean(axis=1, numeric_only = True)
@@ -423,7 +439,7 @@ def BiotypingWithBlast(queryfile, blastoutputbank, FastaBank, GenomeCsv, SaveTem
     Score = (BM_PidentRatio_Mean*(BM_Count**0.5)).sort_values(ascending=False)
     
     if SaveTempFiles == True:
-        Score.to_csv("TempScore.csv")
+        Score.to_csv(ProjectName + "_TempScore.csv")
     
     B646MatchPercentage = BM_Pident['B646L'][GenomeCsv.loc[Score.index[0]].name]*100
 
@@ -443,7 +459,7 @@ def BiotypingWithBlast(queryfile, blastoutputbank, FastaBank, GenomeCsv, SaveTem
             + "Genes Found (Closest in Biotype): " + str(BM_Count[Score.index[0]]) 
             )
         if BM_PidentRatio_Mean[Score.index[0]] <= 0.975:
-            Statement = " Based on weighted percent identity, the genome exhibited a" + str(BM_PidentRatio_Mean[Score.index[0]]*100)% +  "similarity to its nearest match within the specified Biotype. This percent identity is below our recommended cutoff of 97.5%. Nevertheless, this outcome does not imply that the genome signifies a novel Biotype, however this genome should be analyzed using the complete algorithm described in 'Reclassification of ASFV into 7 Biotypes Using Unsupervised Machine Learning' (Dinhobl et al 2023). Please contact administration for assistance."
+            Statement = " Based on weighted percent identity, the genome exhibited a" + str(BM_PidentRatio_Mean[Score.index[0]]*100) + "% similarity to its nearest match within the specified Biotype. This percent identity is below our recommended cutoff of 97.5%. Nevertheless, this outcome does not imply that the genome signifies a novel Biotype, however this genome should be analyzed using the complete algorithm described in 'Reclassification of ASFV into 7 Biotypes Using Unsupervised Machine Learning' (Dinhobl et al 2023). Please contact administration for assistance."
         else:
             Statement = ""
         return str(GenomeCsv.loc[Score.index[0]]['Biotype']) + Statement
@@ -456,7 +472,8 @@ print("Biotyping Complete!")
 
 def MetaDataString(organism, collection_date, country, location, host, tissue, collected_by, isolate, Genotype, Biotype, note):
     string = str()
-    #string = ">" + country + "_" + collection_date
+    if isolate != None:
+        string += isolate + " [Isolate=" + isolate +"]"
     if organism != None:
         string += " [Organism=" + organism + "]"
     if collection_date != None:
@@ -472,8 +489,6 @@ def MetaDataString(organism, collection_date, country, location, host, tissue, c
         string += " [Tissue_type=" + tissue + "]"
     if collected_by != None:
         string += " [Collected_by=" + collected_by + "]"
-    if isolate != None:
-        string += isolate + " [Isolate=" + isolate +"]"
     if str(Genotype) != None:
         string += " [Genotype=" + str(Genotype) + "]"
     if str(Biotype) != None:
@@ -507,7 +522,6 @@ def AnnotationToDF(GBKFile, Name):
         #Only Check CDS
         if Feature.type != 'CDS':
             continue
-                   
         #Gene Name
         try:
             FeatureName = Feature.qualifiers["label"][0]
@@ -548,22 +562,16 @@ with open(ProjectName + "_FeatureTable.txt", "w") as f:
 os.system("bwa-mem2 index " + ConsensusGenome)  
 print("IndexConsensus Complete")
 
-
-#ConsensusMap_L1 = MapToReference(Trim_L1R1, Trim_L1R2, Lane = 1, ReferenceDirectory="", Reference=ConsensusGenome.replace(ProjectName,""))
-#ConsensusMap_L2 = MapToReference(Trim_L2R1, Trim_L2R2, Lane = 2, ReferenceDirectory="", Reference=ConsensusGenome.replace(ProjectName,""))
-#ConsensusMap_L3 = MapToReference(Trim_L3R1, Trim_L3R2, Lane = 3, ReferenceDirectory="", Reference=ConsensusGenome.replace(ProjectName,""))
-#ConsensusMap_L4 = MapToReference(Trim_L4R1, Trim_L4R2, Lane = 4, ReferenceDirectory="", Reference=ConsensusGenome.replace(ProjectName,"")
 ConsensusMap_L1 = MapToReference(Trim_L1R1, Trim_L1R2, Lane = 1, ReferenceDirectory="", Reference=ConsensusGenome)
 ConsensusMap_L2 = MapToReference(Trim_L2R1, Trim_L2R2, Lane = 2, ReferenceDirectory="", Reference=ConsensusGenome)
 ConsensusMap_L3 = MapToReference(Trim_L3R1, Trim_L3R2, Lane = 3, ReferenceDirectory="", Reference=ConsensusGenome)
 ConsensusMap_L4 = MapToReference(Trim_L4R1, Trim_L4R2, Lane = 4, ReferenceDirectory="", Reference=ConsensusGenome)
-time.sleep(60)
+#time.sleep(60)
 print("ConsensusMap Complete Done")
 MergedMapConsensus = MergeMaps(ConsensusMap_L1,ConsensusMap_L2,ConsensusMap_L3,ConsensusMap_L4,"Consensus")
 print("MergedMapConsensus Done")
 os.system("samtools view -b -f 0x2 " + MergedMapConsensus +" | samtools sort -o " + ProjectName + "_merge_map_consensus_sort.bam") #-n flag will cause mpileup to fail
 print("Consensus View")
-#os.system("samtools mpileup " + ProjectName + "_merge_map_consensus_sort.bam" + " -s -a | cut -f3,4,5,6 --complement > " + ProjectName + "_statistics.txt")
 os.system("samtools mpileup " + ProjectName + "_merge_map_consensus_sort.bam" + " -s -a | cut -f3,5,6 --complement > " + ProjectName + "_statistics.txt")
 
 print("Consensus samtools mpileup")
@@ -661,3 +669,19 @@ with open(ProjectName + "_SummaryReadout.txt", "w") as f:
         + "\n" + "############################################################################################################"
         + "\n" + "Additional References:"
         + "\n" + "####TBD#####", file = f)
+
+
+FinalFolder = Make_Directory(ProjectName = ProjectName, Suffix="_TempFiles")
+Temp_Folder = Make_Directory(ProjectName = ProjectName, Suffix="_OutPut")
+
+"""Move_File(ProjectName + "_consensus_metadata.fa")
+Move_File(ProjectName + "_FeatureTable.txt")
+Move_File(ProjectName + "_CoverageGraph.png")
+Move_File(ProjectName + "_SummaryReadout.txt")
+Move_File(ProjectName + "_statistics.txt")
+Move_File(ProjectName + "_SNP.csv")
+Move_File(ProjectName + "_QualityGraph.png")
+Move_File(ProjectName + "_AnnotationTable.csv")
+Move_File(ProjectName + "_Annotated.gb")
+Move_File(ProjectName + "_Lane1.html")
+Move_File(ProjectName + "_merge_map_consensus_sort.bam")"""
