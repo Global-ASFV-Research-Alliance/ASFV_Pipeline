@@ -1,4 +1,5 @@
 # ASFV_Pipeline
+Note: Undergoing Updating. New resources will be up soon!
 ## Dependencies
 Pipeline has been created using a docker image. Singularity may also be used. Please install one of these programs.
 
