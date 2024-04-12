@@ -66,7 +66,7 @@ MetadataNew.csv can be set up to run a single run or multiple consecutive runs. 
 4) (Optional) In MetadataNew.csv, you can provide a custom project name. The output will include date/time and a short custom string for identification purposes within the program. The input will be adjusted to be computer friendly. If one is not provided a randomly generated string and date will be used as a project name.
 
 #### Example of Filling Out MetaDataNew.csv
-This is an example of a properly filled out MetaDataNew.csv with two rows. You can click on the image to zoom in. Notice that forward slashes / are used instead of backslashes \.
+This is an example of a properly filled out MetaDataNew.csv with two rows. You can click on the image to zoom in. Notice that forward slashes / are used instead of backslashes \ .
 ![image](https://github.com/Global-ASFV-Research-Alliance/ASFV_Pipeline/assets/103464896/247b41a9-e4d5-4795-972f-4172f8d9c991)
 
 ### Running the Script (Docker)
