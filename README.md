@@ -65,6 +65,10 @@ MetadataNew.csv can be set up to run a single run or multiple consecutive runs. 
    
 4) (Optional) In MetadataNew.csv, you can provide a custom project name. The output will include date/time and a short custom string for identification purposes within the program. The input will be adjusted to be computer friendly. If one is not provided a randomly generated string and date will be used as a project name.
 
+#### Example of Filling Out MetaDataNew.csv
+This is an example of a properly filled out MetaDataNew.csv with two rows. You can click on the image to zoom in. Notice that forward slashes "/" are used instead of backslashes "\".
+![image](https://github.com/Global-ASFV-Research-Alliance/ASFV_Pipeline/assets/103464896/247b41a9-e4d5-4795-972f-4172f8d9c991)
+
 ### Running the Script (Docker)
 Enter the directory that contains the path to fastq.gz files, Minion directory (optional), and the files and folders detailed in part 1 of the installation section. Example:
 
@@ -116,8 +120,16 @@ export SINGULARITY_BIND=$File_DIR
 singularity exec "/path/to/the/container/ASFV_denovo_assembly_pipeline_v05.sif" \
 python3 ASFV_Pipeline.py
 ```
+## Troubleshooting, Bugs, and Known Problems
+### My Program Dies Early On
+1)	Make sure MetaDataNew.csv is set up properly. This includes changing all "\" to "/".
 
 ## Changelog
+### Version 0.5a - ReadMe Update
+No update of code required, this update solely updates the ReadMe.md file to improve clarity of certain subjects.
+#### Minor Updates
+1)	Example table included to clarify how MetaDataNew.csv should be constructed.
+
 ### Version 0.5 - DeNovo Release
 #### Major Updates
 1)	PLEASE RUN IN NEW FOLDER WITH BACKUP COPIES OF FILES ELSEWHERE. A new script for deleting temporary files has been introduced – this should help save space, but we would like to make sure the risk of deleting files unintentionally is minimized.
