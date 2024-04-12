@@ -121,9 +121,12 @@ singularity exec "/path/to/the/container/ASFV_denovo_assembly_pipeline_v05.sif" 
 python3 ASFV_Pipeline.py
 ```
 ## Troubleshooting, Bugs, and Known Problems
+### My Program Dies Early On
+1)	Make sure MetaDataNew.csv is set up properly. This includes changing all "\" to "/".
 
 ## Changelog
-### Version 0.5a
+### Version 0.5a - ReadMe Update
+No update of code required, this update solely updates the ReadMe.md file to improve clarity of certain subjects.
 #### Minor Updates
 1)	Example table included to clarify how MetaDataNew.csv should be constructed.
 
