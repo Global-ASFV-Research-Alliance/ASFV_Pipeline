@@ -125,6 +125,9 @@ python3 ASFV_Pipeline.py
 1)	Make sure MetaDataNew.csv is set up properly. This includes changing all "\" to "/".
 
 ## Changelog
+### Version 0.6
+#### Major Updates
+1)	Corrected SPAdes de novo bug. Redownload recommended. 
 ### ReadMe Update - Version 0.5a
 No update of code required, this update solely updates the ReadMe.md file to improve clarity of certain subjects.
 #### Minor Updates
