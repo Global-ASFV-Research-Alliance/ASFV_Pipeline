@@ -29,7 +29,7 @@ Delete_Temp_Files = True
 
 # SCRIPT METADATA                                                                                                                 
 TIME = str(datetime.date.today())
-VERSION = str("05")
+VERSION = str("06")
 WEBSITE = "Data processed by pipeline (version " + VERSION + ") at " + TIME +  ". This pipeline was constructed by Edward Spinard, Mark Dinhobl, Douglas Gladue, Jacob Fenster, Nicolas Tesler, Hillary Birtley, Cass Erdelyan, James O'Dwyer, and Anthony Signore. Pipeline can be found at https://github.com/Global-ASFV-Research-Alliance/ASFV_Pipeline."
 
 MetaDataAll = MetaDataRead(METADATA)
