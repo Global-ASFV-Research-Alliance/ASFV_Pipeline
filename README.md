@@ -127,7 +127,7 @@ python3 ASFV_Pipeline.py
 ## Changelog
 ### Version 0.6
 #### Major Updates
-1)	Corrected SPAdes de novo bug. Redownload recommended. 
+1)	Corrected SPAdes de novo bug. Redownload of DeNovo_functions.py recommended. No need to update docker image. 
 ### ReadMe Update - Version 0.5a
 No update of code required, this update solely updates the ReadMe.md file to improve clarity of certain subjects.
 #### Minor Updates
