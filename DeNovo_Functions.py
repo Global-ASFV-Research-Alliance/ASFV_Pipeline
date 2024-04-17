@@ -1752,12 +1752,12 @@ def SpadesDeNovo(ExtractedRead01, ExtractedRead02, ProjectName, CombinedMinionRe
         MinionString = " --nanopore " + CombinedMinionReadFile
         print("***Running De Novo Assembly with Nanopore Reads:" + CombinedMinionReadFile + "***")
     
-    if ExtractedRead03 or ExtractedRead04 == None:
+    if ExtractedRead03 == None or ExtractedRead04 == None:
         Read_String = "-1 " + ExtractedRead01 + " -2 " + ExtractedRead02
         print("***Running De Novo Assembly with Illumina Reads:" + ExtractedRead01 + ExtractedRead02 + "***")
     else:
         Read_String = "--pe1-1 " + ExtractedRead01 + " --pe1-2 " + ExtractedRead02 + " --pe2-1 " + ExtractedRead03 + " --pe2-2 " + ExtractedRead04
-        print("***Running De Novo Assembly with Illumina Reads:" + ExtractedRead01 + ExtractedRead02 + ExtractedRead03 +  + "***")
+        print("***Running De Novo Assembly with Illumina Reads:" + ExtractedRead01 + ExtractedRead02 + ExtractedRead03 + ExtractedRead04 + "***")
     
     os.system("spades.py --careful " + Read_String + MinionString + " -t " + str(threads) + " -m " + str(RAM) + " -k " + str(Kmers) + " -o " + OutputDirectory)
     
