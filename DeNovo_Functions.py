@@ -42,10 +42,13 @@ def Annotation_Function(ProjectName, Fasta_to_Annotate, Genbank_to_scrape):
     print("***_Annotations Complete_***")
     return Project_GenbankFile
 
-## Convert Annotation to Dataframe
-def AnnotationToDF(GBKFile, ProjectName, isolate):
+## Convert Annotation to Dataframe - Not Used
+def AnnotationToDF(GBKFile, ProjectName = None, Remove_Putative = True):
     GBKFile = SeqIO.read(open(GBKFile, "r"), "genbank")
-    dfFeatures = pd.DataFrame(columns=['Isolate', 'Gene','Sequence', 'Start', 'End', 'Strand'])
+    if ProjectName == None:
+        dfFeatures = pd.DataFrame(columns=['Gene','Sequence', 'Start', 'End', 'Strand'])
+    else:
+        dfFeatures = pd.DataFrame(columns=['Isolate', 'Gene','Sequence', 'Start', 'End', 'Strand'])
     #
     for Feature in GBKFile.features:
         
@@ -71,22 +74,27 @@ def AnnotationToDF(GBKFile, ProjectName, isolate):
         FeatureStrand = Feature.strand
         
         # Construct the DataFrame
-        dfFeatures.loc[len(dfFeatures.index)] = [ProjectName, FeatureName, FeatureSequence, FeatureStart, FeatureEnd, FeatureStrand]
-    # remove any putative genes from annotation file
-    dfFeatures = dfFeatures[dfFeatures['Gene'] != 'putative']
+        if ProjectName == None:
+            dfFeatures.loc[len(dfFeatures.index)] = [FeatureName, FeatureSequence, FeatureStart, FeatureEnd, FeatureStrand]
+        else:
+            dfFeatures.loc[len(dfFeatures.index)] = [ProjectName, FeatureName, FeatureSequence, FeatureStart, FeatureEnd, FeatureStrand]
+    # remove any putative genes from dataframe
+    if Remove_Putative == True:
+        dfFeatures = dfFeatures[dfFeatures['Gene'] != 'putative']
+    return dfFeatures
 
-    # Create ncbi annotation file
-    with open(ProjectName + "_FeatureTable.txt", "w") as f:
-        f.write(">Feature " + isolate + "\n")
-        for name, row in dfFeatures.iterrows():
-            if row['Strand'] == 1:
-                print(str(row['Start']) + "\t" + str(row['End']) + "\t" + "CDS", file=f)
-            if row['Strand'] == -1:
-                print(str(row['End']) + "\t" + str(row['Start']) + "\t" + "CDS", file=f)
-            print("\t" + "product " + str(row['Gene']), file=f)
-    f.close()
-    print("***_NCBI Feature Table Complete_***")
-    return ProjectName + "_FeatureTable.txt"
+def GenbankDuplicateGeneCheck(Genbank, ProjectName = None):
+    DF = AnnotationToDF(Genbank, ProjectName)
+    DF = DF[DF.duplicated(['Gene'], keep=False)].sort_values('Gene')
+    ImportantDF = DF[~DF['Gene'].str.contains('|'.join(['hypothetical_','MGF_', "ACD_"]))]
+    if len(ImportantDF) > 0:
+        DuplicateGeneWarning = "Duplicate Genes Found in Genbank Annotation."
+    elif len(DF) > 0:
+        DuplicateGeneWarning = "Duplicate Genes Found in Genbank Annotation. Only MGFs, Hypotheticals, and ACD genes."
+    else:
+        DuplicateGeneWarning = None
+        DF = None
+    return DF, DuplicateGeneWarning
 
 ## Apliyes Quality SNP and unmapped regions to referene sequence
 def Apply_Variants_to_Consensus(Genome_Fasta, VCF_Index, BED_File, ProjectName, Suffix):
@@ -190,7 +198,7 @@ def Consensus_Extracter(Genome_Fasta, BAM_File, Max_Depth_Coverage, Suffix, Proj
     #Find all SNPs
     #
     RAW_File = ProjectName + "_" + Suffix + "_calls.vcf"
-    os.system("bcftools mpileup -Ou -f " + Genome_Fasta + " " + BAM_File + " -d " + Max_Depth_Coverage + " | bcftools call -mv -Ov -o "  + RAW_File)
+    os.system("bcftools mpileup -L " + Max_Depth_Coverage + " -Ou -f " + Genome_Fasta + " " + BAM_File + " -d " + Max_Depth_Coverage + " | bcftools call -mv -Ov -o "  + RAW_File)
     print("***_Consensus Extractor 1/3 Complete_***")
     ###############################################################################
     #
@@ -276,7 +284,7 @@ def Consensus_Extracter(Genome_Fasta, BAM_File, Max_Depth_Coverage, Suffix, Proj
     ##############################################################################
     os.system("bcftools view "+ VCF_Output + " -Oz --write-index -o " + VCF_index)
     print("***_Consensus Extractor 3/3 Complete_***")
-    return VCF_index
+    return VCF_index, CSV_Output
 
 ## Extract Flanking Minion Reads, Align, Create Consensus, 
 def Contig_Extender_for_Polish(ProjectName, MinLengthThreshold, MaxLengthThreshold, MaxSubSample, Threshold, Require_Multiple, MinionMappedFirst10, MinionMappedLast10, First_Output_Fasta, Last_Output_Fasta, First_Output_ALN, Last_Output_ALN):
@@ -491,7 +499,7 @@ def Create_Graph(Stats_File, ProjectName):
     return ProjectName + '_CoverageGraph.png', ProjectName + '_QualityGraph.png', AverageCoverage
 
 ## Write Result Summary to Text File
-def Create_Results_File(ProjectName, Graphic, Website, isolate, Time, p72_Genotype, p72_Isolate, p72_Accession, p72_PID, p72_Length, p72_Warning, Organism, collection_date, country, location, host, tissue, collected_by, Fasta_Assembly, GenBank_Assembly, Biotype, AverageCoverage):
+def Create_Results_File(ProjectName, Graphic, Website, isolate, Time, p72_Genotype, p72_Isolate, p72_Accession, p72_PID, p72_Length, p72_Warning, Organism, collection_date, country, location, host, tissue, collected_by, Fasta_Assembly, GenBank_Assembly, Biotype, AverageCoverage, ErrorString, DuplicateGeneWarning):
     with open(ProjectName + "_SummaryReadout.txt", "w") as f:
         """with open(Graphic) as graphicfile:
             f.write(graphicfile.read())
@@ -530,6 +538,10 @@ def Create_Results_File(ProjectName, Graphic, Website, isolate, Time, p72_Genoty
             print("Tissue Type: " + str(tissue), file=f)
         if collected_by != None:
             print("Collected By: " + str(collected_by), file=f)
+        if ErrorString != None:
+            print("\n" + "############################################################################################################" + "\n" + "Non-Fatal Errors Detected", file=f)
+        if DuplicateGeneWarning != None:
+            print(str(DuplicateGeneWarning) + " These Genes can be found at " + ProjectName + "_DuplicateGenes.csv", file=f)
         print("\n"
             + "\n" + "############################################################################################################"
             + "\n" + "Simplified pipeline explanation (Illumina Only):" 
@@ -544,17 +556,17 @@ def Create_Results_File(ProjectName, Graphic, Website, isolate, Time, p72_Genoty
             + "\n"
             + "\n" + "############################################################################################################"
             + "\n" + "Simplified pipeline explanation (Nanopore and Illumina):" 
-            + "\n" + "Illumina reads were trimmed and mapped to the ASFV Georgia-2007 (LR743116). Mapped Reads were collected. Unmapped reads were collected and mapped to the genome of Sus scrofa (Sus_scrofa.Sscrofa11.1.dna.toplevel)."
+            + "\n" + "Illumina reads were trimmed and mapped to the ASFV Georgia-2007 (FR682468). Mapped Reads were collected. Unmapped reads were collected and mapped to the genome of Sus scrofa (Sus_scrofa.Sscrofa11.1.dna.toplevel)."
             + "\n" + "Unmapped Illumina reads that remained in pairs were collected and used along with the reads that mapped to ASFV Georgia- 2007 and Nanopore reads to assemble a final contig that was annotated using a currated ASFV CDS database."
             + "\n" + "Please look over the annotations as gene fusions/splits may not be properly annotated."
             + "\n"
             + "\n" + "############################################################################################################"
-            + "\n" + "Your genome is available in both fasta " + Fasta_Assembly + " and Genbank " + GenBank_Assembly + ".gb" + " file formats. "
+            + "\n" + "Your genome is available in both fasta " + Fasta_Assembly + " and Genbank " + GenBank_Assembly + " file formats. "
             + "\n"
             + "\n" + "Illumina reads were mapped back to the consensus to produce the coverage map " + ProjectName + '_CoverageGraph.png'
             + "\n" + "The quality of the mapping can be visualized here: " + ProjectName + '_QualityGraph.png'
             + "\n" + "The raw data that was used to produce these graphs can be found here: " + ProjectName + "_statistics.txt"
-            + "\n" + "Illumina read mappings can be observed here:" + ProjectName + "_MergedMap_Final_Genome.bam"
+            + "\n" + "Illumina read mappings can be observed here:" + ProjectName + "_MergedMap_ConsensusGenome.bam"
             + "\n" + "Nanopore read mappings can be observed here:" + ProjectName + "___Minion_Sort.sam"
             + "\n"
             + "\n" + "If you chose to upload this genome, annotations in the required NCBI format can be found here: " + ProjectName + "_FeatureTable.txt"
@@ -680,12 +692,12 @@ def ExtractLargestContig(Assembled_Scaffold_File, ProjectName):
 ## Process BAM file, Create Stats file
 def Generate_Mapping_Stats(GenomeFile, ProjectName):
     SortBamOutput = ProjectName + "_merge_map_consensus_sort.bam"
-    Final_Genome_Stats_File = ProjectName + "_statistics.txt"
+    ConsensusGenome_Stats_File = ProjectName + "_statistics.txt"
     os.system("samtools view -b -f 0x2 " + GenomeFile + " | samtools sort -o " + SortBamOutput) #-n flag will cause mpileup to fail
     print("***_Mapping Stats 1/2 Complete_***")
-    os.system("samtools mpileup " + ProjectName + "_merge_map_consensus_sort.bam" + " -s -a -d 0 | cut -f3,5,6 --complement > " + Final_Genome_Stats_File)
+    os.system("samtools mpileup " + ProjectName + "_merge_map_consensus_sort.bam" + " -s -a -d 0 | cut -f3,5,6 --complement > " + ConsensusGenome_Stats_File)
     print("***_Mapping Stats 2/2 Complete_***")
-    return Final_Genome_Stats_File
+    return ConsensusGenome_Stats_File
 
 ## Index Genome
 def Genome_Index(Genome_To_Index):
@@ -1218,9 +1230,7 @@ def FixGenbankMakeFeatureTable(ProjectName, GBKFile, ConcensusFasta, statistics_
             FeatureStrand = Feature.strand
             
             if statistics_file != None:
-                
-                
-                
+                               
                 NoteAddition = ""
                 for PoorQualityRange in PoorQualityRegions:
                     if overlap(FeatureStart,FeatureEnd,PoorQualityRange[0],PoorQualityRange[1]) > 0:
@@ -1759,7 +1769,9 @@ def SpadesDeNovo(ExtractedRead01, ExtractedRead02, ProjectName, CombinedMinionRe
         Read_String = "--pe1-1 " + ExtractedRead01 + " --pe1-2 " + ExtractedRead02 + " --pe2-1 " + ExtractedRead03 + " --pe2-2 " + ExtractedRead04
         print("***Running De Novo Assembly with Illumina Reads:" + ExtractedRead01 + ExtractedRead02 + ExtractedRead03 + ExtractedRead04 + "***")
     
-    os.system("spades.py --careful " + Read_String + MinionString + " -t " + str(threads) + " -m " + str(RAM) + " -k " + str(Kmers) + " -o " + OutputDirectory)
+    #os.system("spades.py --careful " + Read_String + MinionString + " -t " + str(threads) + " -m " + str(RAM) + " -k " + str(Kmers) + " -o " + OutputDirectory)
+    os.system("spades.py --careful " + Read_String + MinionString + " -t " + str(threads) + " -k " + str(Kmers) + " -o " + OutputDirectory)
+    
     
     print("***De Novo Assembly_Complete_***")
     
