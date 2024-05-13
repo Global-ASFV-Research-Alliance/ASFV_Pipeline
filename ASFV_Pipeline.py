@@ -6,7 +6,7 @@ from DeNovo_Functions import *
 # FILES AND DIRECTORIES
 REFERENCEDIRECTORY = "/app/01_References/"                                   #Permanent Directory within Container 
 GENOTYPINGREFERENCEFASTAS = "/app/02_AdditionalFiles/p72GenotypingData.csv"  #Permanent File within Container
-MEGAGBK = "/app/02_AdditionalFiles/Mega_ASFV_v07.gbk"                        #Permanent File within Container
+MEGAGBK = "/app/02_AdditionalFiles/Mega_ASFV_v08.gbk"                        #Permanent File within Container
 GRAPHICS = "/app/02_AdditionalFiles/Graphic.txt"                             #Permanent File within Container
 BIOTYPINGREFERENCECSV = "/app/02_AdditionalFiles/BiotypingGenomes.csv"       #Permanent File within Container
 BIOTYPEREFERENCES = "/app/05_Biotyping_References/"                          #Permanent File within Container
@@ -29,7 +29,7 @@ Delete_Temp_Files = True
 
 # SCRIPT METADATA                                                                                                                 
 TIME = str(datetime.date.today())
-VERSION = str("06")
+VERSION = str("v07")
 WEBSITE = "Data processed by pipeline (version " + VERSION + ") at " + TIME +  ". This pipeline was constructed by Edward Spinard, Mark Dinhobl, Douglas Gladue, Jacob Fenster, Nicolas Tesler, Hillary Birtley, Cass Erdelyan, James O'Dwyer, and Anthony Signore. Pipeline can be found at https://github.com/Global-ASFV-Research-Alliance/ASFV_Pipeline."
 
 MetaDataAll = MetaDataRead(METADATA)
@@ -38,6 +38,7 @@ MetaDataAll = MetaDataRead(METADATA)
 for name,MetaData in MetaDataAll.iterrows():
     ## Preventing Deletion of Existing Files
     FILESBEFORERUNNING = glob.glob("*")
+    ErrorString = ""
     
     if MetaData["Project_ID (internal)"] == None:
         ProjectName = TIME + "_" + rand_pass(8) 
@@ -51,7 +52,6 @@ for name,MetaData in MetaDataAll.iterrows():
     ## Checking Files
     myList = [MetaData["L1R1"], MetaData["L1R2"], MetaData["L2R1"], MetaData["L2R2"], MetaData["L3R1"], MetaData["L3R2"], MetaData["L4R1"], MetaData["L4R2"]]
     myList = res = [i for i in myList if i is not None]
-    ErrorString = ""
     
     ## Check that Illumina Directory Exist
     DirectoryExists = True
@@ -96,39 +96,39 @@ for name,MetaData in MetaDataAll.iterrows():
             Lane = 1,
             Threads = THREADS,
             ReferenceDirectory = REFERENCEDIRECTORY,
-            Reference = "LR743116_Georgia_2007.fa",
+            Reference = "FR682468_Georgia_2007.fa",
             ProjectName = ProjectName)
         MappedToGeorgia_L2 = MapToReference(Trimmed_Read01 = Trim_L2R1,
             Trimmed_Read02 = Trim_L2R2,
             Lane = 2,
             Threads = THREADS,
             ReferenceDirectory = REFERENCEDIRECTORY,
-            Reference = "LR743116_Georgia_2007.fa",
+            Reference = "FR682468_Georgia_2007.fa",
             ProjectName = ProjectName)
         MappedToGeorgia_L3 = MapToReference(Trimmed_Read01 = Trim_L3R1,
             Trimmed_Read02 = Trim_L3R2,
             Lane = 3,
             Threads = THREADS,
             ReferenceDirectory = REFERENCEDIRECTORY,
-            Reference = "LR743116_Georgia_2007.fa",
+            Reference = "FR682468_Georgia_2007.fa",
             ProjectName = ProjectName)
         MappedToGeorgia_L4 = MapToReference(Trimmed_Read01 = Trim_L4R1,
             Trimmed_Read02 = Trim_L4R2,
             Lane = 4,
             Threads = THREADS,
             ReferenceDirectory = REFERENCEDIRECTORY,
-            Reference = "LR743116_Georgia_2007.fa",
+            Reference = "FR682468_Georgia_2007.fa",
             ProjectName = ProjectName)
         # Combine Mappings
         MappedToGeorgia_Combined = MergeMaps(MapL1 = MappedToGeorgia_L1, 
             MapL2 = MappedToGeorgia_L2, 
             MapL3 = MappedToGeorgia_L3, 
             MapL4 = MappedToGeorgia_L4, 
-            ReferenceName = "LR743116_Georgia_2007", 
+            ReferenceName = "FR682468_Georgia_2007", 
             ProjectName = ProjectName)
 
         ## Part 03 Extracted Reads Mapped to Georgia Reference & Collect UnMapped Reads.............................................................................
-        ExtractedRead01, ExtractedRead02 = ExtractFromMerged(Input = MappedToGeorgia_Combined, Reference = "LR743116_Georgia_2007", ProjectName = ProjectName)
+        ExtractedRead01, ExtractedRead02 = ExtractFromMerged(Input = MappedToGeorgia_Combined, Reference = "FR682468_Georgia_2007", ProjectName = ProjectName)
         
         # New 3/14/2024~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         UnMappedGeorgia01, UnMappedGeorgia02 = ExtractFromMerged_UnMappedReads(Input = MappedToGeorgia_Combined, Reference = "UnMapped_Georgia_Extracted", ProjectName = ProjectName)
@@ -140,27 +140,21 @@ for name,MetaData in MetaDataAll.iterrows():
         ## Part 05 Spades De Novo...................................................................................................................................
         Assembled_Scaffold_File = SpadesDeNovo(ExtractedRead01, ExtractedRead02, ProjectName, None, UnMappedSwine01, UnMappedSwine02)
         
-        # New 3/15/2024~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        # Remove Assembled Swine Contigs and/or rename + move Scaffold file
+        ## Check if Assembled scaffold file was created
+        if Empty_File_Check(Assembled_Scaffold_File) == True:
+            ErrorString = "Failure. De Novo Assembly did not create a scaffold file. This is indicative of poor sequencing, a glitch in the SPades software, or running out of RAM. Please check the spades.log file as well as the following files:" + ExtractedRead01 + ", " + ExtractedRead02  + ", " + UnMappedSwine01  + ", " + UnMappedSwine02 + ". The Pipeline has finished prematurely."
+            ErrorUpdate(MetaDataFile=METADATASTORAGE, Error=ErrorString, ProjectName=ProjectName)
+            continue
+        
+        ## Remove Assembled Swine Contigs and/or rename + move Scaffold file
         Assembled_Scaffold_File = RemoveSwineContigs(DeNovo_Scaffold = Assembled_Scaffold_File, ProjectName = ProjectName)
         
-        ## Check if Assembled scaffold file was created
+        """## Check if Assembled scaffold file was created
         if Empty_File_Check(Assembled_Scaffold_File) == True:
             ErrorString = "Failure. De Novo Assembly did not create a scaffold file. This is indicative of poor sequencing or a glitch in the SPades software. Please check the following files:" + ExtractedRead01 + ", " + ExtractedRead02  + ", " + UnMappedSwine01  + ", " + UnMappedSwine02 + ". The Pipeline has finished prematurely."
             ErrorUpdate(MetaDataFile=METADATASTORAGE, Error=ErrorString, ProjectName=ProjectName)
             continue
-
         """
-        # Copy and Rename Scaffold file if there are not swine contigs
-        if Perform_Rename_Function == True:
-            MoveReferenceFile(ReferenceDirectory="" + ProjectName + "_DeNovoAssembly/", PredictedReference = "scaffolds", FileType=".fasta")
-            Assembled_Scaffold_File_to_Keep = ProjectName + "_scaffolds.fasta"
-            Rename_File(OldFile = "scaffolds.fasta", NewFile = Assembled_Scaffold_File_to_Keep)
-        else:
-            Assembled_Scaffold_File_to_Keep = Assembled_Scaffold_File
-        """
-        
         ## Part 06 Predict Reference...................................................................................................................................
         PredictedReference = PredictReference(Assembled_Scaffold_File, ProjectName)
         
@@ -177,7 +171,7 @@ for name,MetaData in MetaDataAll.iterrows():
             Suffix = "DenovoScaffold_Mapped_to_" + PredictedReference)
 
         ## Part 07 Map to Predicted Reference
-        if PredictedReference == "LR743116_Georgia_2007.fa":
+        if PredictedReference == "FR682468_Georgia_2007.fa":
             CombinedPredicted = MappedToGeorgia_Combined
         else:
             PredictedMap_L1 = MapToReference(Trim_L1R1, Trim_L1R2, Lane = 1, Threads = THREADS, ReferenceDirectory = REFERENCEDIRECTORY, Reference=PredictedReference + ".fa", ProjectName=ProjectName)
@@ -190,7 +184,7 @@ for name,MetaData in MetaDataAll.iterrows():
         Ref_File_In_Directory = MoveReferenceFile(ReferenceDirectory=REFERENCEDIRECTORY, PredictedReference=PredictedReference, FileType=".fa")
 
         print("NewPart")
-        Corrected_CallsVCF = Consensus_Extracter(Ref_File_In_Directory, CombinedPredicted, str(1000000), "", ProjectName)
+        Corrected_CallsVCF, SNPFile = Consensus_Extracter(Ref_File_In_Directory, CombinedPredicted, str(1000000), "", ProjectName)
 
         #Needed!
         UnmappedBed = UnMappedRegions(CombinedPredicted, "", ProjectName)
@@ -217,9 +211,7 @@ for name,MetaData in MetaDataAll.iterrows():
             Biotype = Predicted_Biotype,
             note = WEBSITE)
 
-        Genbank_File = Annotation_Function(ProjectName = ProjectName, 
-            Fasta_to_Annotate = ConsensusGenome, 
-            Genbank_to_scrape = MEGAGBK)
+        
 
 
         Genome_Index(ConsensusGenome)
@@ -229,63 +221,10 @@ for name,MetaData in MetaDataAll.iterrows():
         ConsensusMap_L4 = MapToReference(Trim_L4R1, Trim_L4R2, Lane = 4, Threads = THREADS, ReferenceDirectory="", Reference=ConsensusGenome, ProjectName=ProjectName)
         print("ConsensusMap Complete Done")
         MergedMapConsensus = MergeMaps(ConsensusMap_L1,ConsensusMap_L2,ConsensusMap_L3,ConsensusMap_L4,"Consensus", ProjectName=ProjectName)
-        Final_Genome_Stats_File = Generate_Mapping_Stats(GenomeFile = MergedMapConsensus, ProjectName= ProjectName)
+        ConsensusGenome_Stats_File = Generate_Mapping_Stats(GenomeFile = MergedMapConsensus, ProjectName= ProjectName)
 
         ## Part 20 Graph Statistics.................................................................................................................................
-        Coverage_Graph_File, Quality_Graph_File, AverageCoverage = Create_Graph(Stats_File = Final_Genome_Stats_File, ProjectName = ProjectName)
-
-
-        NCBI_Annotation_File = FixGenbankMakeFeatureTable(ProjectName=ProjectName, 
-            GBKFile=Genbank_File, 
-            ConcensusFasta=ConsensusGenome, 
-            statistics_file=Final_Genome_Stats_File)
-
-        Results_File = Create_Results_File(ProjectName = ProjectName, 
-            Graphic = GRAPHICS, 
-            Website = WEBSITE, 
-            isolate = MetaData['isolate'], 
-            Time = TIME,
-            p72_Genotype = Predicted_Genotype_Info_List[0], 
-            p72_Isolate = Predicted_Genotype_Info_List[3], 
-            p72_Accession = Predicted_Genotype_Info_List[4], 
-            p72_PID = Predicted_Genotype_Info_List[1], 
-            p72_Length = Predicted_Genotype_Info_List[2], 
-            p72_Warning = Predicted_Genotype_Info_List[5],
-            Organism = ORGANISM,
-            collection_date = MetaData['collection_date'], 
-            country = MetaData['country'], 
-            location = MetaData['location'], 
-            host = MetaData['host'], 
-            tissue = MetaData['tissue_type'], 
-            collected_by = MetaData['collected_by'],
-            Fasta_Assembly = ConsensusGenome,
-            GenBank_Assembly = Genbank_File,
-            Biotype = Predicted_Biotype + BioTypeStatement,
-            AverageCoverage = AverageCoverage)
-
-        Files_to_Keep_Temp = [HTML_File1, 
-            HTML_File2, 
-            HTML_File3, 
-            HTML_File4, 
-            Final_Genome_Stats_File, 
-            Coverage_Graph_File, 
-            Quality_Graph_File,
-            Predicted_Genotype_Info_List[6], 
-            ConsensusGenome, 
-            Genbank_File, 
-            NCBI_Annotation_File,
-            MergedMapConsensus, 
-            Results_File,
-            ScaffoldMapped_SAM,
-            Assembled_Scaffold_File,
-            CombinedPredicted]
-        Files_to_Keep = []
-        # Loop to Remove "None" Values
-        for file in Files_to_Keep_Temp:
-            if file != None :
-                Files_to_Keep.append(file)
-                
-        Move_File(ProjectName = ProjectName, List_of_Files = Files_to_Keep)
+        Coverage_Graph_File, Quality_Graph_File, AverageCoverage = Create_Graph(Stats_File = ConsensusGenome_Stats_File, ProjectName = ProjectName)          
 
     ## Start of DeNovo Pipeline.....................................................................................................................................
     else:
@@ -308,39 +247,39 @@ for name,MetaData in MetaDataAll.iterrows():
             Lane = 1,
             Threads = THREADS,
             ReferenceDirectory = REFERENCEDIRECTORY,
-            Reference = "LR743116_Georgia_2007.fa",
+            Reference = "FR682468_Georgia_2007.fa",
             ProjectName = ProjectName)
         MappedToGeorgia_L2 = MapToReference(Trimmed_Read01 = Trim_L2R1,
             Trimmed_Read02 = Trim_L2R2,
             Lane = 2,
             Threads = THREADS,
             ReferenceDirectory = REFERENCEDIRECTORY,
-            Reference = "LR743116_Georgia_2007.fa",
+            Reference = "FR682468_Georgia_2007.fa",
             ProjectName = ProjectName)
         MappedToGeorgia_L3 = MapToReference(Trimmed_Read01 = Trim_L3R1,
             Trimmed_Read02 = Trim_L3R2,
             Lane = 3,
             Threads = THREADS,
             ReferenceDirectory = REFERENCEDIRECTORY,
-            Reference = "LR743116_Georgia_2007.fa",
+            Reference = "FR682468_Georgia_2007.fa",
             ProjectName = ProjectName)
         MappedToGeorgia_L4 = MapToReference(Trimmed_Read01 = Trim_L4R1,
             Trimmed_Read02 = Trim_L4R2,
             Lane = 4,
             Threads = THREADS,
             ReferenceDirectory = REFERENCEDIRECTORY,
-            Reference = "LR743116_Georgia_2007.fa",
+            Reference = "FR682468_Georgia_2007.fa",
             ProjectName = ProjectName)
         # Combine Mappings
         MappedToGeorgia_Combined = MergeMaps(MapL1 = MappedToGeorgia_L1, 
             MapL2 = MappedToGeorgia_L2, 
             MapL3 = MappedToGeorgia_L3, 
             MapL4 = MappedToGeorgia_L4, 
-            ReferenceName = "LR743116_Georgia_2007", 
+            ReferenceName = "FR682468_Georgia_2007", 
             ProjectName = ProjectName)
 
         ## Part 03 Extracted Reads Mapped to Georgia Reference & Collect UnMapped Reads.............................................................................
-        ExtractedRead01, ExtractedRead02 = ExtractFromMerged(Input = MappedToGeorgia_Combined, Reference = "LR743116_Georgia_2007", ProjectName = ProjectName)
+        ExtractedRead01, ExtractedRead02 = ExtractFromMerged(Input = MappedToGeorgia_Combined, Reference = "FR682468_Georgia_2007", ProjectName = ProjectName)
         
         UnMappedGeorgia01, UnMappedGeorgia02 = ExtractFromMerged_UnMappedReads(Input = MappedToGeorgia_Combined, Reference = "UnMapped_Georgia_Extracted", ProjectName = ProjectName)
         
@@ -363,7 +302,7 @@ for name,MetaData in MetaDataAll.iterrows():
 
         ## Check if Assembled scaffold file was created
         if Empty_File_Check(Assembled_Scaffold_File) == True:
-            ErrorString = "Failure. De Novo Assembly did not create a scaffold file. This is indicative of poor sequencing or a glitch in the SPades software. Please check the following files:" + ExtractedRead01 + ", " + ExtractedRead02  + ", " + UnMappedSwine01  + ", " + UnMappedSwine02 + ". The Pipeline has finished prematurely."
+            ErrorString = "Failure. De Novo Assembly did not create a scaffold file. This is indicative of poor sequencing, a glitch in the SPades software, or running out of RAM. Please check the spades.log file as well as the following files:" + ExtractedRead01 + ", " + ExtractedRead02  + ", " + UnMappedSwine01  + ", " + UnMappedSwine02 + ". The Pipeline has finished prematurely."
             ErrorUpdate(MetaDataFile=METADATASTORAGE, Error=ErrorString, ProjectName=ProjectName)
             continue
 
@@ -486,12 +425,12 @@ for name,MetaData in MetaDataAll.iterrows():
             ProjectName = ProjectName)
 
         ## Part_12 Find Variants and Unmapped Regions, apply to flanking region fasta...............................................................................
-        x5_Prime_Polished_variant_file = Consensus_Extracter(Genome_Fasta = x5_Prime_NonPolish_FlankingFile, 
+        x5_Prime_Polished_variant_file, UNIMPORTANT = Consensus_Extracter(Genome_Fasta = x5_Prime_NonPolish_FlankingFile, 
             BAM_File = Mapped_To_5_Prime_Combined,
             Max_Depth_Coverage="100",
             Suffix ="x5_prime_flank_consensus",  
             ProjectName = ProjectName)
-        x3_Prime_Polished_variant_file = Consensus_Extracter(Genome_Fasta = x3_Prime_NonPolish_FlankingFile, 
+        x3_Prime_Polished_variant_file, UNIMPORTANT = Consensus_Extracter(Genome_Fasta = x3_Prime_NonPolish_FlankingFile, 
             BAM_File = Mapped_To_3_Prime_Combined,
             Max_Depth_Coverage="100",
             Suffix ="x3_prime_flank_consensus", 
@@ -564,23 +503,23 @@ for name,MetaData in MetaDataAll.iterrows():
             ProjectName = ProjectName)
 
         ## Part 16 Clean up SNPs present in mapped genome and extract Consensus.....................................................................................
-        Final_Genome_preTrim_Variant_File = Consensus_Extracter(Genome_Fasta = Consensus_with_FlankingFile, 
+        ConsensusGenome_preTrim_Variant_File, UNIMPORTANT = Consensus_Extracter(Genome_Fasta = Consensus_with_FlankingFile, 
             BAM_File = Mapped_To_Extended_Consensus_Combined,
             Max_Depth_Coverage ="10000",
             Suffix = "PreTrimFinal",
             ProjectName = ProjectName)
-        Final_Genome_preTrim_UnMapped_Bed = UnMappedRegions(BAM_File = Mapped_To_Extended_Consensus_Combined, Suffix = "PreTrimFinal", ProjectName = ProjectName)
-        Final_Genome_preTrim = Apply_Variants_to_Consensus(Genome_Fasta = Consensus_with_FlankingFile, 
-            VCF_Index = Final_Genome_preTrim_Variant_File, 
-            BED_File = Final_Genome_preTrim_UnMapped_Bed, 
+        ConsensusGenome_preTrim_UnMapped_Bed = UnMappedRegions(BAM_File = Mapped_To_Extended_Consensus_Combined, Suffix = "PreTrimFinal", ProjectName = ProjectName)
+        ConsensusGenome_preTrim = Apply_Variants_to_Consensus(Genome_Fasta = Consensus_with_FlankingFile, 
+            VCF_Index = ConsensusGenome_preTrim_Variant_File, 
+            BED_File = ConsensusGenome_preTrim_UnMapped_Bed, 
             ProjectName = ProjectName, 
             Suffix = "PreTrimFinal")
 
         ## Part 17 Trim Ambgious nucloetides at the end of the genomes..............................................................................................
-        Final_Genome_preMeta = Trim_N_at_Start_End(input_fasta = Final_Genome_preTrim, ProjectName = ProjectName)
+        ConsensusGenome_preMeta = Trim_N_at_Start_End(input_fasta = ConsensusGenome_preTrim, ProjectName = ProjectName)
 
         ## Part 18 Predicted P72 Genotype...........................................................................................................................
-        Predicted_Genotype_Info_List = p72finder_new(queryfile = Final_Genome_preMeta, subjectfile = GENOTYPINGREFERENCEFASTAS, ProjectName = ProjectName)
+        Predicted_Genotype_Info_List = p72finder_new(queryfile = ConsensusGenome_preMeta, subjectfile = GENOTYPINGREFERENCEFASTAS, ProjectName = ProjectName)
         """#List = [
         #0 Predicted_Genotype, 
         #1 Predicted_Genotype_PID, 
@@ -595,69 +534,69 @@ for name,MetaData in MetaDataAll.iterrows():
 
 
         ## Part 19 Reverse Complement Genome if it is in the wrong orientation.....................................................................................
-        QStart_Qend_NewFasta(queryfile = Final_Genome_preMeta, qstart = Predicted_Genotype_Info_List[7], qend = Predicted_Genotype_Info_List[8])
+        QStart_Qend_NewFasta(queryfile = ConsensusGenome_preMeta, qstart = Predicted_Genotype_Info_List[7], qend = Predicted_Genotype_Info_List[8])
 
         ## Part 20 Index Corrected Fasta............................................................................................................................
-        Genome_Index(Genome_To_Index = Final_Genome_preMeta)
+        Genome_Index(Genome_To_Index = ConsensusGenome_preMeta)
 
         ## Part 21 Map Trimmed Illumina Reads to Corrected Consensus................................................................................................
-        Mapped_To_Final_Genome_L1 = MapToReference(Trimmed_Read01 = Trim_L1R1, 
+        Mapped_To_ConsensusGenome_L1 = MapToReference(Trimmed_Read01 = Trim_L1R1, 
             Trimmed_Read02 = Trim_L1R2, 
             Lane = 1, 
             Threads = THREADS, 
             ReferenceDirectory = "", 
-            Reference = Final_Genome_preMeta, 
+            Reference = ConsensusGenome_preMeta, 
             ProjectName = ProjectName)
-        Mapped_To_Final_Genome_L2 = MapToReference(Trimmed_Read01 = Trim_L2R1, 
+        Mapped_To_ConsensusGenome_L2 = MapToReference(Trimmed_Read01 = Trim_L2R1, 
             Trimmed_Read02 = Trim_L2R2, 
             Lane = 2, 
             Threads = THREADS, 
             ReferenceDirectory = "", 
-            Reference = Final_Genome_preMeta, 
+            Reference = ConsensusGenome_preMeta, 
             ProjectName = ProjectName)
-        Mapped_To_Final_Genome_L3 = MapToReference(Trimmed_Read01 = Trim_L3R1, 
+        Mapped_To_ConsensusGenome_L3 = MapToReference(Trimmed_Read01 = Trim_L3R1, 
             Trimmed_Read02 = Trim_L3R2, 
             Lane = 3, 
             Threads = THREADS, 
             ReferenceDirectory = "", 
-            Reference = Final_Genome_preMeta, 
+            Reference = ConsensusGenome_preMeta, 
             ProjectName = ProjectName)
-        Mapped_To_Final_Genome_L4 = MapToReference(Trimmed_Read01 = Trim_L4R1, 
+        Mapped_To_ConsensusGenome_L4 = MapToReference(Trimmed_Read01 = Trim_L4R1, 
             Trimmed_Read02 = Trim_L4R2, 
             Lane = 4, 
             Threads = THREADS, 
             ReferenceDirectory = "", 
-            Reference = Final_Genome_preMeta, 
+            Reference = ConsensusGenome_preMeta, 
             ProjectName = ProjectName)
 
         # Combine BAM mapping Files
-        Mapped_To_Final_Genome_Combined = MergeMaps(MapL1 = Mapped_To_Final_Genome_L1, 
-            MapL2 = Mapped_To_Final_Genome_L2, 
-            MapL3 = Mapped_To_Final_Genome_L3, 
-            MapL4 = Mapped_To_Final_Genome_L4, 
-            ReferenceName = "Final_Genome", 
+        Mapped_To_ConsensusGenome_Combined = MergeMaps(MapL1 = Mapped_To_ConsensusGenome_L1, 
+            MapL2 = Mapped_To_ConsensusGenome_L2, 
+            MapL3 = Mapped_To_ConsensusGenome_L3, 
+            MapL4 = Mapped_To_ConsensusGenome_L4, 
+            ReferenceName = "ConsensusGenome", 
             ProjectName = ProjectName)
 
         ## Part 22 Prep Bam file for analysis, Generate Coverage and Mapping Stats..................................................................................
-        Final_Genome_Stats_File = Generate_Mapping_Stats(GenomeFile = Mapped_To_Final_Genome_Combined, ProjectName= ProjectName)
+        ConsensusGenome_Stats_File = Generate_Mapping_Stats(GenomeFile = Mapped_To_ConsensusGenome_Combined, ProjectName= ProjectName)
 
         ## Part 23 Graph Statistics.................................................................................................................................
-        Coverage_Graph_File, Quality_Graph_File, AverageCoverage = Create_Graph(Stats_File = Final_Genome_Stats_File, ProjectName = ProjectName)
+        Coverage_Graph_File, Quality_Graph_File, AverageCoverage = Create_Graph(Stats_File = ConsensusGenome_Stats_File, ProjectName = ProjectName)
 
         ## Part 24 Map Minon Reads to Corrected Consensus (information only)........................................................................................
-        MinionMapped_FinalGenome = MiniMapToReferenceSimple2(GenomeFileTemp = Final_Genome_preMeta,
+        MinionMapped_FinalGenome = MiniMapToReferenceSimple2(GenomeFileTemp = ConsensusGenome_preMeta,
             CombinedMinionReadFile = CombinedMinionReadFile, 
             ProjectName = ProjectName, 
             Suffix = "")
 
         ## Part 25 Predict Biotype..................................................................................................................................
-        Predicted_Biotype, BioTypeStatement = BiotypingWithBlast(queryfile = Final_Genome_preMeta, 
+        Predicted_Biotype, BioTypeStatement = BiotypingWithBlast(queryfile = ConsensusGenome_preMeta, 
             blastoutputbank =  BLASTOUTPUTBANK, 
             FastaBank = BIOTYPEREFERENCES, 
             BioTypeReferenceCSV = BIOTYPINGREFERENCECSV)
 
-        ## Part 26 Add MetaData to fasta file.........Update with Biotype...........................................................................................
-        Final_Genome = MetaDataString(input_fasta_file = Final_Genome_preMeta, 
+        ## Part 26 Add MetaData to fasta file.........Update with Biotype......................................................................................
+        ConsensusGenome = MetaDataString(input_fasta_file = ConsensusGenome_preMeta, 
             isolate = MetaData['isolate'], 
             organism = ORGANISM, 
             collection_date = MetaData['collection_date'], 
@@ -669,72 +608,99 @@ for name,MetaData in MetaDataAll.iterrows():
             Genotype = Predicted_Genotype_Info_List[0],
             Biotype = Predicted_Biotype,
             note = WEBSITE)
+    
+    ## Annotate Using the Transformer.........................................................................................................................
+    Genbank_File = Annotation_Function(ProjectName = ProjectName, 
+        Fasta_to_Annotate = ConsensusGenome, 
+        Genbank_to_scrape = MEGAGBK)
+    
+    ## Clean Up Annotations
+    NCBI_Annotation_File = FixGenbankMakeFeatureTable(ProjectName=ProjectName, 
+        GBKFile=Genbank_File, 
+        ConcensusFasta=ConsensusGenome, 
+        statistics_file=ConsensusGenome_Stats_File)
 
-        ## Part 27 Annotate Using the Transformer...................................................................................................................
-        Genbank_File = Annotation_Function(ProjectName = ProjectName, 
-            Fasta_to_Annotate = Final_Genome, 
-            Genbank_to_scrape = MEGAGBK)
-        """
-        ## Part 25 Convert Genbank Annotations to NCBI_annotation file..............................................................................................
-        NCBI_Annotation_File = AnnotationToDF(GBKFile = Genbank_File, 
-            ProjectName = ProjectName, 
-            isolate = MetaData['isolate'])
-        """
-        NCBI_Annotation_File = FixGenbankMakeFeatureTable(ProjectName=ProjectName, 
-            GBKFile=Genbank_File, 
-            ConcensusFasta=Final_Genome, 
-            statistics_file=Final_Genome_Stats_File)
+    #..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..
+    ##++ EPILOGUE ++##
 
-        ## Part 28 Create Results Text File.........................................................................................................................
-        Results_File = Create_Results_File(ProjectName = ProjectName, 
-            Graphic = GRAPHICS, 
-            Website = WEBSITE, 
-            isolate = MetaData['isolate'], 
-            Time = TIME,
-            p72_Genotype = Predicted_Genotype_Info_List[0], 
-            p72_Isolate = Predicted_Genotype_Info_List[3], 
-            p72_Accession = Predicted_Genotype_Info_List[4], 
-            p72_PID = Predicted_Genotype_Info_List[1], 
-            p72_Length = Predicted_Genotype_Info_List[2], 
-            p72_Warning = Predicted_Genotype_Info_List[5],
-            Organism = ORGANISM,
-            collection_date = MetaData['collection_date'], 
-            country = MetaData['country'], 
-            location = MetaData['location'], 
-            host = MetaData['host'], 
-            tissue = MetaData['tissue_type'], 
-            collected_by = MetaData['collected_by'],
-            Fasta_Assembly = Final_Genome,
-            GenBank_Assembly = Genbank_File,
-            Biotype = Predicted_Biotype + BioTypeStatement,
-            AverageCoverage = AverageCoverage)
+    ## Check for Non-Fatal Errors...............................................................................................................................
 
-        #..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..#..
-        #++ EPILOGUE ++##
+    ## Detect Duplicate Genes in the Genbank
+    DuplicateGenes, DuplicateGeneWarning = GenbankDuplicateGeneCheck(Genbank_File, ProjectName)
+    if DuplicateGeneWarning != None:
+        DuplicateGenes.to_csv(ProjectName + "_DuplicateGenes.csv")
+        Move_File(ProjectName = ProjectName, List_of_Files = [ProjectName + "_DuplicateGenes.csv"])
+        ErrorString += DuplicateGeneWarning
 
-        ## Move Files that we want to keep
+    ## Prepare Summary File.....................................................................................................................................
+    Results_File = Create_Results_File(ProjectName = ProjectName, 
+        Graphic = GRAPHICS, 
+        Website = WEBSITE, 
+        isolate = MetaData['isolate'], 
+        Time = TIME,
+        p72_Genotype = Predicted_Genotype_Info_List[0], 
+        p72_Isolate = Predicted_Genotype_Info_List[3], 
+        p72_Accession = Predicted_Genotype_Info_List[4], 
+        p72_PID = Predicted_Genotype_Info_List[1], 
+        p72_Length = Predicted_Genotype_Info_List[2], 
+        p72_Warning = Predicted_Genotype_Info_List[5],
+        Organism = ORGANISM,
+        collection_date = MetaData['collection_date'], 
+        country = MetaData['country'], 
+        location = MetaData['location'], 
+        host = MetaData['host'], 
+        tissue = MetaData['tissue_type'], 
+        collected_by = MetaData['collected_by'],
+        Fasta_Assembly = ConsensusGenome,
+        GenBank_Assembly = Genbank_File,
+        Biotype = Predicted_Biotype + BioTypeStatement,
+        AverageCoverage = AverageCoverage,
+        ErrorString = ErrorString, 
+        DuplicateGeneWarning = DuplicateGeneWarning)
+    
+    ## Preparing Files to Keep..................................................................................................................................
+    if MetaData["MinionDirectory"] == None:
         Files_to_Keep_Temp = [HTML_File1, 
-            HTML_File2, 
-            HTML_File3, 
-            HTML_File4, 
-            Final_Genome_Stats_File, 
-            Coverage_Graph_File, 
-            Quality_Graph_File,
-            Predicted_Genotype_Info_List[6], 
-            Final_Genome, 
-            Genbank_File, 
-            NCBI_Annotation_File, 
-            Results_File,
-            Mapped_To_Final_Genome_Combined,
-            MinionMapped_FinalGenome[2]]
-        Files_to_Keep = []
-        # Loop to Remove "None" Values
-        for file in Files_to_Keep_Temp:
-            if file != None :
-                Files_to_Keep.append(file)
-        Move_File(ProjectName = ProjectName, List_of_Files = Files_to_Keep)
+                HTML_File2, 
+                HTML_File3, 
+                HTML_File4, 
+                ConsensusGenome_Stats_File, 
+                Coverage_Graph_File, 
+                Quality_Graph_File,
+                Predicted_Genotype_Info_List[6], 
+                ConsensusGenome, 
+                Genbank_File, 
+                NCBI_Annotation_File,
+                MergedMapConsensus, 
+                Results_File,
+                ScaffoldMapped_SAM,
+                Assembled_Scaffold_File,
+                CombinedPredicted,
+                SNPFile]  
+    else:
+        Files_to_Keep_Temp = [HTML_File1, 
+                HTML_File2, 
+                HTML_File3, 
+                HTML_File4, 
+                ConsensusGenome_Stats_File, 
+                Coverage_Graph_File, 
+                Quality_Graph_File,
+                Predicted_Genotype_Info_List[6], 
+                ConsensusGenome, 
+                Genbank_File, 
+                NCBI_Annotation_File, 
+                Results_File,
+                Mapped_To_ConsensusGenome_Combined,
+                MinionMapped_FinalGenome[2]]
+    
+    Files_to_Keep = []
+    ### Loop to Remove "None" Values, Save Important Files
+    for file in Files_to_Keep_Temp:
+        if file != None :
+            Files_to_Keep.append(file)
+    Move_File(ProjectName = ProjectName, List_of_Files = Files_to_Keep)
 
-    ## Delete Temp Files............................................................................................................................................
+    ## Delete Temp Files
     if Delete_Temp_Files == True:
         files = glob.glob(ProjectName + "*")
         try:
@@ -761,7 +727,7 @@ for name,MetaData in MetaDataAll.iterrows():
         except:
             pass
 
-    ErrorString = ""
+    ## Update Errors in MetaDataStorage.csv
     ErrorUpdate(MetaDataFile=METADATASTORAGE,
             Error=ErrorString,
             ProjectName=ProjectName)

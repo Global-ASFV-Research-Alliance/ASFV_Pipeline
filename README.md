@@ -24,12 +24,12 @@ The Image can be downloaded and formatted for docker or singuilarity using the f
 #### Docker
 First, open Docker Desktop. Then in Powershell enter the following command:
 ```powershell
-docker pull garadock/asfv_denovo_assembly_pipeline:v05
+docker pull garadock/asfv_denovo_assembly_pipeline:v06
 ```
 #### Singularity
 Open the terminal and enter the following command:
 ```terminal
-singularity build --fakeroot ASFV_denovo_assembly_pipeline_v05.sif docker://garadock/asfv_denovo_assembly_pipeline:v05
+singularity build --fakeroot ASFV_denovo_assembly_pipeline_v06.sif docker://garadock/asfv_denovo_assembly_pipeline:v06
 ```
 
 ## Instructions for use
@@ -85,7 +85,7 @@ cd ASFV_Pipeline
     ```powershell
     $LinHomeMount = $HOME.substring(2).replace('\','/')
     $LinPWD = $pwd.path.substring(2).replace('\','/')
-    docker run -it -v ${HOME}:$LinHomeMount -w $LinPWD garadock/asfv_denovo_assembly_pipeline:v05 /bin/bash
+    docker run -it -v ${HOME}:$LinHomeMount -w $LinPWD garadock/asfv_denovo_assembly_pipeline:v06 /bin/bash
     ```
 
     ```powershell
@@ -117,7 +117,7 @@ File_DIR=/your/directory/containing/files/
 
 export SINGULARITY_BIND=$File_DIR
 
-singularity exec "/path/to/the/container/ASFV_denovo_assembly_pipeline_v05.sif" \
+singularity exec "/path/to/the/container/ASFV_denovo_assembly_pipeline_v06.sif" \
 python3 ASFV_Pipeline.py
 ```
 ## Troubleshooting, Bugs, and Known Problems
@@ -125,7 +125,22 @@ python3 ASFV_Pipeline.py
 1)	Make sure MetaDataNew.csv is set up properly. This includes changing all "\" to "/".
 
 ## Changelog
-### Version 0.6
+### Version 07 - Python and Image Update
+To fully benefit from this update, please redownload both the docker image and the python files.
+ 
+#### Major Updates
+1)	Improved the Spades assembly by removing the explicate RAM limit.
+2)	Corrected Indel calling during variant detection, allowing the pipeline to take advantage of areas with higher coverage.
+3)	There is now a file and warning indicating if there are any duplicate genes found in Annotations. The warning specifies if only MGF, ACD, and Hypothetical genes were duplicated.
+	
+	a)	As part of this process X69R was split into X69R_1, X69R_2, X69R_3
+#### Minor Updates
+1)	Common code at end of both pipelines is now put together.
+2)	Final_Genome has been renamed Consensus_Genome throughout the file to improve consistency between the two pipelines.
+3)	Corrected ASFV Georgia 2007/1 accession to FR682468
+4)	Corrected glitch that prevented the SNP table from being saved.
+
+### Version 06
 #### Major Updates
 1)	Corrected SPAdes de novo bug. Redownload of DeNovo_functions.py recommended. No need to update docker image. 
 ### ReadMe Update - Version 0.5a
@@ -133,7 +148,7 @@ No update of code required, this update solely updates the ReadMe.md file to imp
 #### Minor Updates
 1)	Example table included to clarify how MetaDataNew.csv should be constructed.
 
-### Version 0.5 - DeNovo Release
+### Version 05 - DeNovo Release
 #### Major Updates
 1)	PLEASE RUN IN NEW FOLDER WITH BACKUP COPIES OF FILES ELSEWHERE. A new script for deleting temporary files has been introduced – this should help save space, but we would like to make sure the risk of deleting files unintentionally is minimized.
 2)	De novo pipeline introduced – requires Illumina and Nanopore reads – greater accuracy provided along with no match needed. The old pipeline will be referred to as the “Illumina Pipeline”. Minion directory can be specified in new MetaDataNew.csv column.
