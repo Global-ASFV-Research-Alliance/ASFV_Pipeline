@@ -125,6 +125,9 @@ python3 ASFV_Pipeline.py
 1)	Make sure MetaDataNew.csv is set up properly. This includes changing all "\" to "/".
 
 ## Changelog
+### Version 07 - Python Update
+Bug fix implemented in the case that there are no variants. Please redownload the functions .py if you downloaded it before 5/21.
+
 ### Version 07 - Python and Image Update
 To fully benefit from this update, please redownload both the docker image and the python files.
  
