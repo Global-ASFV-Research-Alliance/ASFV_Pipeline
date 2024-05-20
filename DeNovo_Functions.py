@@ -209,8 +209,9 @@ def Consensus_Extracter(Genome_Fasta, BAM_File, Max_Depth_Coverage, Suffix, Proj
     # Stop Process if there are no Variants
     if len(Variant_Table.index) == 0:
         VCF_index = ""
+        CSV_Output = ""
         print("no variants found")
-        return VCF_index
+        return VCF_index, CSV_Output
     
     # set file names
     CSV_Output = ProjectName + "_" + Suffix + "_SNP.csv"
