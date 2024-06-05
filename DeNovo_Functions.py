@@ -512,21 +512,21 @@ def Create_Results_File(ProjectName, Graphic, Website, isolate, Time, p72_Genoty
             + "\n" + "####TBD#####"
             + "\n" 
             + "\n" + "############################################################################################################"
-            + "\n" + Website 
+            + "\n" + str(Website)
             + "\n"
             + "\n" 
-            + "\n" + "Isolate Name: " + isolate
-            + "\n" + "File ID: " + ProjectName
-            + "\n" + "Date of Assembly: " + Time
+            + "\n" + "Isolate Name: " + str(isolate)
+            + "\n" + "File ID: " + str(ProjectName)
+            + "\n" + "Date of Assembly: " + str(Time)
             + "\n" + "Average Illumina Read Coverage Across Genome: " + str(AverageCoverage)
             + "\n" + "Predicted Genotype: " + str(p72_Genotype)
             + "\n" + "Closest p72 Match: " + str(p72_Isolate) + " (" + str(p72_Accession) + ")"
             + "\n" + "The B646L(P72) encoded by your genome is " + str(p72_PID) + "%" + " identical to " + str(p72_Length) + ' amino acids encoded by ' + str(p72_Isolate)
-            + "\n" + p72_Warning
+            + "\n" + str(p72_Warning)
             + "\n" 
-            + "\n" + "Predicted Biotype:" + Biotype
+            + "\n" + "Predicted Biotype:" + str(Biotype)
             + "\n" + "PROVIDED METADATA"
-            + "\n" + "Organism: " + Organism, file = f)
+            + "\n" + "Organism: " + str(Organism), file = f)
         if collection_date != None:
             print("Collection Date: " + str(collection_date), file=f)
         if country != None:
